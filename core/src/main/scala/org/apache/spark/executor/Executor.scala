@@ -1328,6 +1328,30 @@ private[spark] object Executor {
       }
     }
   }
+
+  /**
+   * Finds the first fatal error, `KilledByTaskReaperException`, or `SparkFatalException`
+   * in the `Throwable` chain.
+   *
+   * @param t The throwable to start the search from.
+   * @param depthToCheck The max depth of the exception chain to search for a fatal error.
+   * @return The first fatal error `Throwable`, or `None` if no fatal error is found within
+   *         the specified depth.
+   */
+  @scala.annotation.tailrec
+  def findRootCauseError(t: Throwable, depthToCheck: Int): Option[Throwable] = {
+    if (t == null || depthToCheck <= 0) {
+      None
+    } else if (
+      isFatalError(t, depthToCheck) ||
+        t.isInstanceOf[KilledByTaskReaperException] ||
+        t.isInstanceOf[SparkFatalException]
+    ) {
+      Some(t)
+    } else {
+      findRootCauseError(t.getCause, depthToCheck - 1)
+    }
+  }
 }
 
 class KilledByTaskReaperException(message: String) extends SparkException(message)
